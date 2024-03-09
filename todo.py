@@ -148,7 +148,11 @@ class Todo:
         matched_items = []
 
         for i, item in enumerate(self.todo_items):
-            if fuzz.partial_ratio(item.description, query) >= 70 or fuzz.partial_ratio(item.project, query) >= 70:  # Adjust the threshold as needed
+            if fuzz.partial_ratio(item.project, query) >= 90:
+                matched_items.append((i, item))
+
+        for i, item in enumerate(self.todo_items):
+            if fuzz.partial_ratio(item.description, query) >= 70:  # Adjust the threshold as needed
                 matched_items.append((i, item))
 
         if matched_items:
