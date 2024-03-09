@@ -145,11 +145,10 @@ class Todo:
             print("No completed items in the last week")
 
     def list_fuzzy_match(self, query):
-        print("Items fuzzy matching with '{}':".format(query))
         matched_items = []
 
         for i, item in enumerate(self.todo_items):
-            if fuzz.partial_ratio(item.description, query) >= 70:  # Adjust the threshold as needed
+            if fuzz.partial_ratio(item.description, query) >= 70 or fuzz.partial_ratio(item.project, query) >= 70:  # Adjust the threshold as needed
                 matched_items.append((i, item))
 
         if matched_items:
