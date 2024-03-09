@@ -64,6 +64,30 @@ class Todo:
             print("Invalid index. Please provide a valid index.")
             return False
 
+    def append(self, item_number, text):
+        index = item_number - 1
+        if 0 <= index < len(self.todo_items):
+            todo_item = self.todo_items[index]
+            todo_item.description += " " + text
+            self.save_todo_items()
+            print(f"{todo_item.get_priority_color()}{item_number}. {todo_item}")
+            return True
+        else:
+            print("Invalid item number. Please provide a valid item number.")
+            return False
+
+    def prepend(self, item_number, text):
+        index = item_number - 1
+        if 0 <= index < len(self.todo_items):
+            todo_item = self.todo_items[index]
+            todo_item.description = text + " " + todo_item.description
+            self.save_todo_items()
+            print(f"{todo_item.get_priority_color()}{item_number}. {todo_item}")
+            return True
+        else:
+            print("Invalid item number. Please provide a valid item number.")
+            return False
+
     def delete(self, index):
         if 1 <= index <= len(self.todo_items):
             deleted_item = self.todo_items.pop(index - 1)  # Remove todo item from the list
@@ -208,6 +232,15 @@ def parse_args():
     # Report command
     parser_report = subparsers.add_parser("report", aliases=["r"], help="Generate a report of completed items")
 
+    prep_parser = subparsers.add_parser("prep", help="Prepend text to a todo item")
+    prep_parser.add_argument("item_number", type=int, help="Todo item number")
+    prep_parser.add_argument("text", nargs="+", help="Text to prepend to the todo item")
+
+    # Append subcommand
+    app_parser = subparsers.add_parser("app", help="Append text to a todo item")
+    app_parser.add_argument("item_number", type=int, help="Todo item number")
+    app_parser.add_argument("text", nargs="+", help="Text to append to the todo item")    
+
     return parser.parse_args()
 
 def main():
@@ -233,6 +266,10 @@ def main():
         todo_list.delete(args.item_number)
     elif args.command in {"report", "r"}:
         todo_list.report()
+    elif args.command == "app":
+        todo_list.append(args.item_number, " ".join(args.text))
+    elif args.command == "prep":
+        todo_list.prepend(args.item_number, " ".join(args.text))
     else:
         todo_list.print()
 
