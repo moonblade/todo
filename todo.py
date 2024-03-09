@@ -4,6 +4,7 @@ import datetime
 import uuid
 import pickle
 import os
+from fuzzywuzzy import fuzz
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 class TodoItem:
@@ -98,9 +99,31 @@ class Todo:
             pickle.dump(self.completed_items, file)
 
     def add_todo_item(self, description, priority='z', project=None):
+        # Check if +word exists in description and extract project
+        project_indicator_index = description.find("+")
+        if project_indicator_index != -1:
+            space_after_indicator_index = description.find(" ", project_indicator_index)
+            if space_after_indicator_index == -1:  # Check if +word is at the end of the sentence
+                project = description[project_indicator_index + 1:].strip()
+                description = description.replace("+" + project, "").strip()
+            else:
+                project = description[project_indicator_index + 1:space_after_indicator_index]
+                description = description.replace("+" + project, "").strip()
+
+        # Check if @a to @z exists in description and extract priority
+        priority_indicator_index = description.find("@")
+        if priority_indicator_index != -1:
+            priority_char = description[priority_indicator_index + 1]
+            if priority_char.isalpha() and priority_char.lower() in "abcdefghijklmnopqrstuvwxyz":
+                # Check if the priority indicator is followed by a space or it is at the end of the sentence
+                if (priority_indicator_index + 2 < len(description) and 
+                        description[priority_indicator_index + 2] == " ") or (priority_indicator_index == len(description) - 2):
+                    priority = priority_char.lower()
+                    description = description.replace("@" + priority, "").strip()
+
         todo_item = TodoItem(description, priority, project)
         self.todo_items.append(todo_item)
-        self.todo_items.sort(key=lambda x: (x.priority, x.project, x.description))
+        self.todo_items.sort(key=lambda x: (x.priority, x.project, x.description))  # Sort the list
         self.save_todo_items()
 
     def report(self):
@@ -121,20 +144,38 @@ class Todo:
         else:
             print("No completed items in the last week")
 
+    def list_fuzzy_match(self, query):
+        print("Items fuzzy matching with '{}':".format(query))
+        matched_items = []
+
+        for i, item in enumerate(self.todo_items):
+            if fuzz.partial_ratio(item.description, query) >= 70:  # Adjust the threshold as needed
+                matched_items.append((i, item))
+
+        if matched_items:
+            for index, item in matched_items:
+                print(f"{item.get_priority_color()}{index + 1}. {item}")
+        else:
+            print("No items found.")
+
+    def set_priority(self, index, priority):
+        if 1 <= index <= len(self.todo_items):
+            item = self.todo_items[index - 1]
+            item.priority = priority
+            self.todo_items.sort(key=lambda x: (x.priority, x.project, x.description))  # Sort the list
+            self.save_todo_items()
+            self.print()
+            return True
+        else:
+            print("Invalid index. Please provide a valid index.")
+            return False
+
     def __str__(self):
         formatted_items = [f"{todo_item.get_priority_color()}{index+1}. {todo_item}" for index, todo_item in enumerate(self.todo_items)]
         return '\n'.join(formatted_items)
 
     def print(self):
         print(self)
-
-def list_todos_fuzzy(args):
-    # Logic to list todos with fuzzy search
-    print("Listing todos with fuzzy search...")
-
-def set_priority(args):
-    # Logic to set priority for todo
-    print("Setting priority for todo:", args.item_number, args.priority)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Manage todos")
@@ -157,6 +198,10 @@ def parse_args():
     done_parser = subparsers.add_parser("done", aliases=["d"], help="Mark todo as done")
     done_parser.add_argument("item_number", type=int, help="Todo item number")
 
+    # Delete subcommand
+    parser_delete = subparsers.add_parser("delete", aliases=["del"], help="Delete a todo item")
+    parser_delete.add_argument("item_number", type=int, help="Todo item number")
+
     # Report command
     parser_report = subparsers.add_parser("report", aliases=["r"], help="Generate a report of completed items")
 
@@ -174,13 +219,15 @@ def main():
         todo_list.print()
     elif args.command in {"list", "l"}:
         if args.search:
-            list_todos_fuzzy(args)
+            todo_list.list_fuzzy_match(" ".join(args.search))
         else:
             todo_list.print()
-    # elif args.command in {"pri", "p"}:
-    #     set_priority(args)
+    elif args.command in {"pri", "p"}:
+        todo_list.set_priority(args.item_number, args.priority)
     elif args.command in {"done", "d"}:
         todo_list.complete(args.item_number)
+    elif args.command in {"delete", "del"}:
+        todo_list.delete(args.item_number)
     elif args.command in {"report", "r"}:
         todo_list.report()
     else:
